@@ -9,11 +9,7 @@ from django.contrib.auth.decorators import login_required
 class BaseRegisterView(CreateView):
     model = User
     form_class = BaseRegisterForm
-<<<<<<< HEAD
     success_url = '/'
-=======
-    success_url = '/materials'
->>>>>>> 0b0faa8 (D5.8 homework)
 
 
 @login_required
