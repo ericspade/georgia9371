@@ -1,6 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.template.loader import render_to_string
 from django.urls import reverse
+from django.db.models.signals import post_save, m2m_changed
+from django.dispatch import receiver
+from django.core.mail import send_mail
 
 
 class Author(models.Model):
@@ -17,7 +21,11 @@ class Author(models.Model):
 
 
 class Category(models.Model):
-    category = models.CharField(max_length=64, unique=True)
+    category = models.TextField(max_length=64, unique=True)
+    subscribers = models.ManyToManyField(User, related_name='subscribers', blank=True)
+
+    def __str__(self):
+        return self.category
 
 
 class Post(models.Model):
@@ -43,6 +51,9 @@ class Post(models.Model):
     def get_absolute_url(self):
         return reverse('news', args=[str(self.id)])
 
+    def __str__(self):
+        return self.name
+
 
 class PostCategory(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
@@ -63,3 +74,30 @@ class Comment(models.Model):
     def dislike(self):
         self.rating = self.rating - 1
         self.save()
+
+
+@receiver(m2m_changed, sender=PostCategory)
+def notify_subscribers_news_created(sender, instance, action, **kwargs):
+    subject = f'{instance.header} {instance.article_text}'
+    if action == 'post_add':
+        if instance.type == 0:
+            for cat in instance.category.all():
+                print(cat)
+                for sub in User.objects.filter(subscribers__category=cat):
+                    print(sub)
+                    send_mail(
+                        subject=subject,
+                        message=instance.article_text,
+                        from_email='',
+                        recipient_list=[sub.email],
+                        fail_silently=False,
+                        html_message=render_to_string("newsemail.html", {'post': instance})
+                    )
+        else:
+            send_mail(
+                subject=subject,
+                message=instance.article_text,
+                from_email='',
+                recipient_list=['gtna8e6@gmail.com'],
+                fail_silently=False
+            )
